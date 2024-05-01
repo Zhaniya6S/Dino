@@ -1,0 +1,28 @@
+body {
+  background-color: white;
+  color: gray;
+  font-size: 125%;
+  background-color: rgb(36, 36, 36);
+  border-radius: 10px;
+  width: 700px; 
+  height: 300px; 
+  margin: auto; 
+  font-family:fantasy; 
+} 
+.dinogame{
+  font-size: 30px;
+  text-align: center;
+  margin-top: 80px; 
+  padding: 40px;
+}
+.wrapper {
+  box-sizing: border-box;
+  font-size: 1em;
+  line-height: 1.6em;
+  margin: 50px auto ;
+  max-width: 600px;
+  width: 100%;
+} 
+  #resources {
+    display: none;
+  }
