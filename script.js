@@ -1,46 +1,26 @@
-(function() {
-  function Runner(containerId, runnerConfig) {// Объявление конструктора Runner
-    // Проверка, существует ли уже экземпляр класса Runner и если существует, то возвращается
-    if (Runner.instance_) // Если экземпляр класса Runner еще не создан, создаем его
-      return Runner.instance_; // instance означает конкретный объект, созданный с использованием конструктора класса.
-    Runner.instance = this; // this используется для обращения к текущему объекту. Как только функция вызывается, this ссылается на объект, который вызвал функцию.
-    this.elementContainer = document.querySelector(containerId); // Поиск элемента по его айди
-    this.config = runnerConfig || Runner.config;// Задавание конфигурации игры
-    this.dimensions = Runner.defaultSize; // Задавание размеров игры по умолчанию
-    // Инициализируем переменные для хранения объектов игры и статистики
-    this.canvas = null;
-    this.canvasCtx = null;
-    this.tRex = null;
-    this.distanceMeter = null;
-    this.distanceRan = 0;
-    this.highestScore = 0;
-    this.time = 0;
-    this.runningTime = 0;
+
+(function() {// Создание фукнкции для работы игры
+  function Runner(containerId, runnerConfig) { // Функция Runner принимает два параметра: containerId: id контейнера в котором будет отображаться игра, runnerConfig - настройки игры переданные в конструктор
+    if (Runner.instance) // Проверка, существования образца Runner
+        return Runner.instance; // Если существует возвращается
+    else (Runner.instance = this); // Если не существует создаётся новый образец и сохраняется в Runner.instance
+
+    this.elementContainer = document.querySelector(containerId);// Находит элемент по его id и присваивает ему значение
+    this.config = runnerConfig || Runner.config; // Устанавливает конфигурацию игры и использует либо 
+    this.dimensions = Runner.defaultSize;  // Задаем размеры игры по умолчанию
+    // Инициализация переменных для хранения объектов игры и статистики
+    this.distanceRun = 0; // Пройденное расстояние.
+    this.highestScore = 0; // Самый высокий результат.
     // Рассчитываем время отрисовки каждого кадра
     this.msPerFrame = 1000 / FPS;
     // Устанавливаем начальную скорость игры
     this.currentSpeed = this.config.SPEED;
-    // Массив для хранения препятствий
-    this.obstacles = [];
-    // Флаги состояния игры
-    this.started = false;
-    this.activated = false;
-    this.crashed = false;
-    this.paused = false;
-    // Идентификатор таймера для изменения размеров окна браузера
-    this.resizeTimerId_ = null;
-    // Счетчик количества игр
-    this.playCount = 0;
-    // Звуковые эффекты
-    this.audioBuffer = null;
-    this.soundFx = {};
-    // Глобальный контекст веб-аудио для воспроизведения звуков
-    this.audioContext = null;
     // Изображения
     this.images = {};
-    this.imagesLoaded = 0;
-    // Загрузка изображений для игры
-    this.loadImages();}
+    // Загрузка изображений для игры 
+    this.loadImages();
+  }
+
   // Запуск игры при загрузке страницы
   window['Runner'] = Runner;
   let DEFAULT_WIDTH = 600;  // Ширина игрового окна по умолчанию
@@ -48,6 +28,7 @@
   let IS_HIDPI = window.devicePixelRatio > 1;  // Флаг для проверки поддержки HiDPI (Retina)
   let IS_IOS = window.navigator.userAgent.indexOf('UIWebViewForStaticFileContent') > -1;  // Флаг для проверки, запущена ли игра на iOS
   let IS_MOBILE = window.navigator.userAgent.indexOf('Mobi') > -1 || IS_IOS;  // Флаг для проверки, запущена ли игра на мобильном устройстве
+  
   Runner.config = {
     SPEED: 6,// Начальная скорость бега динозавра
     // Ускорение бега (величина, на которую увеличивается скорость бега)
@@ -79,17 +60,14 @@
     // Время задержки перед очисткой игровых объектов после окончания игры
     CLEAR_TIME: 3000,
     // Время задержки перед очисткой игровых объектов после отображения "GAME OVER"
-    GAMEOVER_CLEAR_TIME: 750,
-    // Идентификатор шаблона ресурсов (например, звуков)
-    RESOURCE_TEMPLATE_ID: 'audio'
+    GAMEOVER_CLEAR_TIME: 750
   };
 // Здесь задаются размеры игры
   Runner.defaultSize = {
     WIDTH: DEFAULT_WIDTH,  // Ширина игрового окна по умолчанию
     HEIGHT: 150            // Высота игрового окна по умолчанию
   };
-  Runner.classes = {
-    CANVAS: 'runner-canvas',        // CSS класс для холста игры
+  Runner.classes = {      // CSS класс для холста игры
     CONTAINER: 'runner-container',  // CSS класс для контейнера игры
     CRASHED: 'crashed',             // CSS класс для состояния "Игрок разбился"
     TOUCH_CONTROLLER: 'controller'  // CSS класс для сенсорного контроллера (на мобильных устройствах)
@@ -103,15 +81,11 @@ Runner.imageSources = {
     {name: 'HORIZON', id: 'horizon'},          // Горизонт
     {name: 'RESTART', id: 'restart'},          // Кнопка "Перезапустить"
     {name: 'TEXT_SPRITE', id: 'text'},         // Спрайт текста
-    {name: 'TREX', id: 'dino'}                // Изображение игрока (динозавра)
+    {name: 'DINO', id: 'dino'}                // Изображение игрока (динозавра)
   ]
 };
 // Звуки 
-Runner.sounds = {
-  BUTTON_PRESS: 'pressing', // Звук нажатия кнопки
-  HIT: 'hitting', // Звук столкновения
-  SCORE: 'achievement' // Звук достижения
-};
+
   Runner.keycodes = {
     JUMP: {'38': 1, '32': 1}, // Up, spacebar
     DUCK: {'40': 1}, // Down
@@ -136,10 +110,10 @@ Runner.prototype = {
         case 'GRAVITY':
         case 'MIN_JUMP_HEIGHT':
         case 'SPEED_DROP_COEFFICIENT':
-          this.tRex.config[setting] = value;
+          this.dino.config[setting] = value;
           break;
         case 'INITIAL_JUMP_VELOCITY':
-          this.tRex.setJumpVelocity(value);
+          this.dino.setJumpVelocity(value);
           break;
         case 'SPEED':
           this.setSpeed(value);
@@ -155,26 +129,6 @@ loadImages: function() {
     this.images[imgSource.name] = document.getElementById(imgSource.id);}
   // Инициализация игры после загрузки изображений
   this.init();},
-loadSounds: function() {
-  // Проверка, что устройство не является устройством iOS
-  if (!IS_IOS) {
-    // Создание нового аудио-контекста
-    this.audioContext = new AudioContext();
-    // Получение шаблона ресурсов из DOM
-    let resourceTemplate = document.getElementById(this.config.RESOURCE_TEMPLATE_ID).content;
-    // Загрузка звуковых файлов
-    for (let sound in Runner.sounds) {
-      let soundSrc = resourceTemplate.getElementById(Runner.sounds[sound]).src;
-      // Извлечение кодированной строки из источника звука
-      soundSrc = soundSrc.substr(soundSrc.indexOf(',') + 1);
-      // Декодирование кодированной строки в массив байтов
-      let buffer = decodeBase64ToArrayBuffer(soundSrc);
-      // Асинхронная декодирование аудио-данных
-      // Нет гарантии, что звуковые эффекты будут загружены в том же порядке, что и перечислены в объекте Runner.sounds
-      this.audioContext.decodeAudioData(buffer, function(index, audioData) {
-        this.soundFx[index] = audioData;
-      }.bind(this, sound));
-    }}},
 
 setSpeed: function(opt_speed) {},
 init: function() {
@@ -194,7 +148,7 @@ init: function() {
   // Создание дистанционного метра
   this.distanceMeter = new DistanceMeter(this.canvas, this.images.TEXT_SPRITE, this.dimensions.WIDTH);
   // Создание Ти-Рекса
-  this.tRex = new Trex(this.canvas, this.images.TREX);
+  this.dino = new Dino(this.canvas, this.images.DINO);
   // Добавление контейнера игры на страницу
   this.elementContainer.appendChild(this.containerEl);
   // Создание контроллера для мобильных устройств
@@ -207,7 +161,6 @@ init: function() {
   // Обработка изменения размера окна
   window.addEventListener(Runner.events.RESIZE, this.debounceResize.bind(this));},
 adjustDimensions: function() {
-clearInterval(this.resizeTimerId_);
 this.resizeTimerId_ = null;
 let boxStyles = window.getComputedStyle(this.elementContainer);
 let padding = Number(boxStyles.paddingLeft.substr(0,
@@ -219,11 +172,11 @@ this.dimensions.WIDTH = this.elementContainer.offsetWidth - padding * 2;
 playIntro: function() {
   if (!this.started && !this.crashed) {
     this.playingIntro = true;
-    this.tRex.playingIntro = true;
+    this.dino.playingIntro = true;
 
     // Определение CSS анимации.
     let keyframes = '@-webkit-keyframes intro { ' +
-      'from { width:' + Trex.config.WIDTH + 'px }' +
+      'from { width:' + Dino.config.WIDTH + 'px }' +
       'to { width: ' + this.dimensions.WIDTH + 'px }' +
       '}';
     document.styleSheets[0].insertRule(keyframes, 0);
@@ -250,7 +203,7 @@ startGame: function() {
   // Сброс времени игры и флагов воспроизведения анимации.
   this.runningTime = 0;
   this.playingIntro = false;
-  this.tRex.playingIntro = false;
+  this.dino.playingIntro = false;
   this.playCount++;
 
   // Обработка случаев, когда игра теряет фокус.
@@ -270,12 +223,12 @@ let deltaTime = now - (this.time || now);
 this.time = now;
 if (this.activated) {
   this.clearCanvas();
-if (this.tRex.jumping) {
-  this.tRex.updateJump(deltaTime, this.config);}
+if (this.dino.jumping) {
+  this.dino.updateJump(deltaTime, this.config);}
   this.runningTime += deltaTime;
-let hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+let hasObstacles = this.runningTime > this.config.CLEAR_TIME;  
 // Первый прыжок запускает вступительную анимацию.
-if (this.tRex.jumpCount == 1 && !this.playingIntro) {
+if (this.dino.jumpCount == 1 && !this.playingIntro) {
   this.playIntro();
 }
 
@@ -291,22 +244,22 @@ if (this.playingIntro) {
 
 // Check for collisions.
 let collision = hasObstacles &&
-checkForCollision(this.horizon.obstacles[0], this.tRex);
+checkForCollision(this.horizon.obstacles[0], this.dino);
 if (!collision) {
-  this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+  this.distanceRun += this.currentSpeed * deltaTime / this.msPerFrame;
 if (this.currentSpeed < this.config.MAX_SPEED) {
   this.currentSpeed += this.config.ACCELERATION;}
 } else {
 this.gameOver();}
-if (this.distanceMeter.getActualDistance(this.distanceRan) >
+
+if (this.distanceMeter.getActualDistance(this.distanceRun) >
   this.distanceMeter.maxScore) {
-  this.distanceRan = 0;}
+  this.distanceRun = 0;}
 let playAcheivementSound = this.distanceMeter.update(deltaTime,
-Math.ceil(this.distanceRan));
-if (playAcheivementSound) {
-  this.playSound(this.soundFx.SCORE);}}
+Math.ceil(this.distanceRun));
+if (playAcheivementSound) {}}
 if (!this.crashed) {
-  this.tRex.update(deltaTime);
+  this.dino.update(deltaTime);
   this.raq();}},
 handleEvent: function(e) {
 return (function(evtType, events) {
@@ -340,13 +293,11 @@ onKeyDown: function(e) {
     if (!this.crashed && (Runner.keycodes.JUMP[String(e.keyCode)] || e.type == Runner.events.TOUCHSTART)) {
       // Если игра еще не активирована, загружаем звуки и активируем игру.
       if (!this.activated) {
-        this.loadSounds();
         this.activated = true;
       }
       // Если игрок не находится в процессе прыжка, начинаем прыжок.
-      if (!this.tRex.jumping) {
-        this.playSound(this.soundFx.BUTTON_PRESS);
-        this.tRex.startJump();
+      if (!this.dino.jumping) {
+        this.dino.startJump();
       }
     }
   // Если игра завершена и произошло касание экрана внутри области игры, перезапускаем игру.
@@ -355,9 +306,9 @@ onKeyDown: function(e) {
   }
 }
 // Если нажата клавиша ускоренного падения (Duck) и игрок находится в процессе прыжка, активируем ускоренное падение.
-if (Runner.keycodes.DUCK[e.keyCode] && this.tRex.jumping) {
+if (Runner.keycodes.DUCK[e.keyCode] && this.dino.jumping) {
   e.preventDefault();
-  this.tRex.setSpeedDrop();
+  this.dino.setSpeedDrop();
 }},
 // Метод для обработки события отпускания клавиши.
 onKeyUp: function(e) {
@@ -367,10 +318,10 @@ onKeyUp: function(e) {
 
   // Если игра запущена и отпущена клавиша прыжка, завершаем прыжок игрока.
   if (this.isRunning() && isJumpKey) {
-    this.tRex.endJump();
+    this.dino.endJump();
 } // Если отпущена клавиша ускоренного падения (Duck), сбрасываем флаг ускоренного падения.
 else if (Runner.keycodes.DUCK[keyCode]) {
-  this.tRex.speedDrop = false;
+  this.dino.speedDrop = false;
 } 
 // Если игра завершена, проверяем, достаточно ли времени прошло перед повторным нажатием клавиши прыжка для перезапуска игры.
 else if (this.crashed) {
@@ -395,12 +346,11 @@ isRunning: function() {
 return !!this.raqId;
 },
 gameOver: function() {
-this.playSound(this.soundFx.HIT);
 vibrate(200);
 this.stop();
 this.crashed = true;
 this.distanceMeter.acheivement = false;
-this.tRex.update(100, Trex.status.CRASHED);
+this.dino.update(100, Dino.status.CRASHED);
 // Если панель окончания игры еще не создана, создаем новую.
 if (!this.gameOverPanel) {
   this.gameOverPanel = new GameOverPanel(
@@ -416,8 +366,8 @@ else {
 }
 
 // обновляется лучший счёт.
-if (this.distanceRan > this.highestScore) {
-  this.highestScore = Math.ceil(this.distanceRan);
+if (this.distanceRun > this.highestScore) {
+  this.highestScore = Math.ceil(this.distanceRun);
   this.distanceMeter.setHighScore(this.highestScore);
 }
 // Сбрасывается время.
@@ -431,7 +381,7 @@ play: function() {
 if (!this.crashed) {
   this.activated = true;
   this.paused = false;
-  this.tRex.update(0, Trex.status.RUNNING);
+  this.dino.update(0, Dino.status.RUNNING);
   this.time = getTimeStamp();
   this.update();
 }},
@@ -441,14 +391,13 @@ if (!this.raqId) {
   this.runningTime = 0;
   this.activated = true;
   this.crashed = false;
-  this.distanceRan = 0;
+  this.distanceRun = 0;
   this.setSpeed(this.config.SPEED);
   this.time = getTimeStamp();
   this.clearCanvas();
   this.distanceMeter.reset(this.highestScore);
   this.horizon.reset();
-  this.tRex.reset();
-  this.playSound(this.soundFx.BUTTON_PRESS);
+  this.dino.reset();
   this.update();}},
 
 onVisibilityChange: function(e) {
@@ -456,13 +405,7 @@ if (document.hidden || document.webkitHidden || e.type == 'blur') {
 this.stop();
 } else {
 this.play();}},
-playSound: function(soundBuffer) {
-if (soundBuffer) {
-let sourceNode = this.audioContext.createBufferSource();
-sourceNode.buffer = soundBuffer;
-sourceNode.connect(this.audioContext.destination);
-sourceNode.start(0);
-}}};
+};
 Runner.updateCanvasScaling = function(canvas, opt_width, opt_height) {
 let context = canvas.getContext('2d');
 
@@ -559,14 +502,14 @@ this.canvasCtx.drawImage(
   textTargetWidth, textTargetHeight
 );
 }};
-function checkForCollision(obstacle, tRex, opt_canvasCtx) {
+function checkForCollision(obstacle, dino, opt_canvasCtx) {
 
-// Создание объекта tRexBox для ограничивающей рамки T-Rex
-let tRexBox = new CollisionBox(
-  tRex.xPos + 1,                  // x-координата верхнего левого угла рамки T-Rex
-  tRex.yPos + 1,                  // y-координата верхнего левого угла рамки T-Rex
-  tRex.config.WIDTH - 2,          // Ширина рамки T-Rex
-  tRex.config.HEIGHT - 2           // Высота рамки T-Rex
+// Создание объекта dinoBox для ограничивающей рамки T-Rex
+let dinoBox = new CollisionBox(
+  dino.xPos + 1,                  // x-координата верхнего левого угла рамки T-Rex
+  dino.yPos + 1,                  // y-координата верхнего левого угла рамки T-Rex
+  dino.config.WIDTH - 2,          // Ширина рамки T-Rex
+  dino.config.HEIGHT - 2           // Высота рамки T-Rex
 );
 
 // Создание объекта obstacleBox для ограничивающей рамки препятствия
@@ -579,30 +522,30 @@ let obstacleBox = new CollisionBox(
 
 /// Отладочное отображение внешних рамок
 if (opt_canvasCtx) {
-  drawCollisionBoxes(opt_canvasCtx, tRexBox, obstacleBox);
+  drawCollisionBoxes(opt_canvasCtx, dinoBox, obstacleBox);
 }
 
 // Простая проверка внешних границ.
-if (boxCompare(tRexBox, obstacleBox)) {
+if (boxCompare(dinoBox, obstacleBox)) {
   // В случае столкновения, получаем внутренние рамки препятствия и T-Rex
   let collisionBoxes = obstacle.collisionBoxes;         // Внутренние рамки препятствия
-  let tRexCollisionBoxes = Trex.collisionBoxes; 
+  let dinoCollisionBoxes = Dino.collisionBoxes; 
   
 // Изменение положения
-for (let t = 0; t < tRexCollisionBoxes.length; t++) {
+for (let t = 0; t < dinoCollisionBoxes.length; t++) {
 for (let i = 0; i < collisionBoxes.length; i++) {
 
-let adjTrexBox =
-createAdjustedCollisionBox(tRexCollisionBoxes[t], tRexBox);
+let adjDinoBox =
+createAdjustedCollisionBox(dinoCollisionBoxes[t], dinoBox);
 let adjObstacleBox =
 createAdjustedCollisionBox(collisionBoxes[i], obstacleBox);
-let crashed = boxCompare(adjTrexBox, adjObstacleBox);
+let crashed = boxCompare(adjDinoBox, adjObstacleBox);
 
 // Рисование полей
 if (opt_canvasCtx) {
-drawCollisionBoxes(opt_canvasCtx, adjTrexBox, adjObstacleBox);}
+drawCollisionBoxes(opt_canvasCtx, adjDinoBox, adjObstacleBox);}
 if (crashed) {
-return [adjTrexBox, adjObstacleBox];}}}}
+return [adjDinoBox, adjObstacleBox];}}}}
 return false;};
 function createAdjustedCollisionBox(box, adjustment) {
 return new CollisionBox(
@@ -610,24 +553,24 @@ box.x + adjustment.x,
 box.y + adjustment.y,
 box.width,
 box.height);};
-function drawCollisionBoxes(canvasCtx, tRexBox, obstacleBox) {
+function drawCollisionBoxes(canvasCtx, dinoBox, obstacleBox) {
 canvasCtx.save();
 canvasCtx.strokeStyle = '#f00';
-canvasCtx.strokeRect(tRexBox.x, tRexBox.y,
-tRexBox.width, tRexBox.height);
+canvasCtx.strokeRect(dinoBox.x, dinoBox.y,
+dinoBox.width, dinoBox.height);
 canvasCtx.strokeStyle = '#0f0';
 canvasCtx.strokeRect(obstacleBox.x, obstacleBox.y,
 obstacleBox.width, obstacleBox.height);
 canvasCtx.restore();};
-function boxCompare(tRexBox, obstacleBox) {
+function boxCompare(dinoBox, obstacleBox) {
 let crashed = false;
 let obstacleBoxX = obstacleBox.x;
 
 // Ограничивает и выравнивает рамки по оси
-if (tRexBox.x < obstacleBoxX + obstacleBox.width &&
-  tRexBox.x + tRexBox.width > obstacleBoxX &&
-  tRexBox.y < obstacleBox.y + obstacleBox.height &&
-  tRexBox.height + tRexBox.y > obstacleBox.y) {
+if (dinoBox.x < obstacleBoxX + obstacleBox.width &&
+  dinoBox.x + dinoBox.width > obstacleBoxX &&
+  dinoBox.y < obstacleBox.y + obstacleBox.height &&
+  dinoBox.height + dinoBox.y > obstacleBox.y) {
   crashed = true;
 }return crashed;
 };
@@ -661,21 +604,21 @@ this.cloneCollisionBoxes();
 
 // Разрешить изменение размера только если игра находится на правильной скорости.
 if (this.size > 1 && this.typeConfig.multipleSpeed > speed) {
-this.size = 1;}
-this.width = this.typeConfig.width * this.size;
-this.xPos = this.dimensions.WIDTH - this.width;
+  this.size = 1;}
+  this.width = this.typeConfig.width * this.size;
+  this.xPos = this.dimensions.WIDTH - this.width;
 this.draw();
 if (this.size > 1) {
-this.collisionBoxes[1].width = this.width - this.collisionBoxes[0].width -
-this.collisionBoxes[2].width;
-this.collisionBoxes[2].x = this.width - this.collisionBoxes[2].width;}
-this.gap = this.getGap(this.gapCoefficient, speed);},
+  this.collisionBoxes[1].width = this.width - this.collisionBoxes[0].width -
+  this.collisionBoxes[2].width;
+  this.collisionBoxes[2].x = this.width - this.collisionBoxes[2].width;}
+  this.gap = this.getGap(this.gapCoefficient, speed);},
 draw: function() {
 let sourceWidth = this.typeConfig.width;
 let sourceHeight = this.typeConfig.height;
 if (IS_HIDPI) {
-sourceWidth = sourceWidth * 2;
-sourceHeight = sourceHeight * 2;}
+  sourceWidth = sourceWidth * 2;
+  sourceHeight = sourceHeight * 2;}
 let sourceX = (sourceWidth * this.size) * (0.5 * (this.size - 1));
 this.canvasCtx.drawImage(this.image,
 sourceX, 0,
@@ -707,7 +650,7 @@ collisionBoxes[i].height);
 }}};
 Obstacle.types = [{
 type: 'CACTUS_SMALL',
-className: ' cactus cactus-small ',
+className: ' cactus-small ',
 width: 17,
 height: 35,
 yPos: 105,
@@ -731,25 +674,25 @@ new CollisionBox(0, 12, 7, 38),
 new CollisionBox(8, 0, 7, 49),
 new CollisionBox(13, 10, 10, 38)
 ]}];
-function Trex(canvas, image) {
+function Dino(canvas, image) {
 this.canvas = canvas;
 this.canvasCtx = canvas.getContext('2d');
 this.image = image;
 this.xPos = 0;
 this.yPos = 0;
 
-// Положение на земле.
-this.groundYPos = 0;
-this.currentFrame = 0;
-this.currentAnimFrames = [];
-this.blinkDelay = 0;
-this.animStartTime = 0;
-this.timer = 0;
-this.msPerFrame = 1000 / FPS;
-this.config = Trex.config;
+this.groundYPos = 0; // Положение персонажа на земле. Переменная groundYPos используется для хранения вертикальной позиции персонажа на экране.
+this.currentFrame = 0; //Переменная currentFrame используется для хранения текущего кадра анимации персонажа.
+this.currentAnimFrames = []; // currentAnimFrames - это массив, который будет содержать кадры анимации для текущего действия персонажа
+this.blinkDelay = 0; // blinkDelay это задержка между морганиями персонажа. Вероятно, это используется для анимации глаз или чего-то подобного.
+this.animStartTime = 0; // animStartTime используется для хранения времени начала текущей анимации.
+this.timer = 0; // timer это таймер, который будет использоваться для отслеживания времени анимации.
+this.msPerFrame = 1000 / FPS; // msPerFrame содержит количество миллисекунд, которое должно пройти между кадрами анимации. FPS вероятно, обозначает количество кадров в секунду (Frames Per Second), поэтому msPerFrame задает количество миллисекунд на каждый кадр, основываясь на FPS.
+this.config = Dino.config; // config - это объект конфигурации, вероятно, содержащий различные настройки для персонажа, такие как скорость, размеры и т. д. Похоже, что эти настройки загружаются из объекта Dino.config.
+
 
 // Текущий статус status.
-this.status = Trex.status.WAITING;
+this.status = Dino.status.WAITING;
 this.jumping = false;
 this.jumpVelocity = 0;
 this.reachedMinHeight = false;
@@ -758,7 +701,7 @@ this.jumpCount = 0;
 this.jumpspotX = 0;
 this.init();
 };
-Trex.config = {
+Dino.config = {
 DROP_VELOCITY: -5,
 GRAVITY: 0.6,
 HEIGHT: 47,
@@ -771,7 +714,7 @@ SPRITE_WIDTH: 262,
 START_X_POS: 50,
 WIDTH: 44
 };
-Trex.collisionBoxes = [
+Dino.collisionBoxes = [
 new CollisionBox(1, -1, 30, 26),
 new CollisionBox(32, 0, 8, 16),
 new CollisionBox(10, 35, 14, 8),
@@ -779,14 +722,14 @@ new CollisionBox(1, 24, 29, 5),
 new CollisionBox(5, 30, 21, 4),
 new CollisionBox(9, 34, 15, 4)
 ];
-Trex.status = {
+Dino.status = {
 CRASHED: 'CRASHED',
 JUMPING: 'JUMPING',
 RUNNING: 'RUNNING',
 WAITING: 'WAITING'
 };
-Trex.BLINK_TIMING = 7000;
-Trex.animFrames = {
+Dino.BLINK_TIMING = 7000;
+Dino.animFrames = {
 WAITING: {
 frames: [44, 0],
 msPerFrame: 1000 / 3
@@ -804,7 +747,7 @@ frames: [0],
 msPerFrame: 1000 / 60
 }
 };
-Trex.prototype = {
+Dino.prototype = {
 init: function() {
 this.blinkDelay = this.setBlinkDelay();
 this.groundYPos = Runner.defaultSize.HEIGHT - this.config.HEIGHT -
@@ -812,7 +755,7 @@ Runner.config.BOTTOM_PAD;
 this.yPos = this.groundYPos;
 this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
 this.draw(0, 0);
-this.update(0, Trex.status.WAITING);
+this.update(0, Dino.status.WAITING);
 },
 setJumpVelocity: function(setting) {
 this.config.INIITAL_JUMP_VELOCITY = -setting;
@@ -825,9 +768,9 @@ this.timer += deltaTime;
 if (opt_status) {
   this.status = opt_status;
   this.currentFrame = 0;
-  this.msPerFrame = Trex.animFrames[opt_status].msPerFrame;
-  this.currentAnimFrames = Trex.animFrames[opt_status].frames;
-if (opt_status == Trex.status.WAITING) {
+  this.msPerFrame = Dino.animFrames[opt_status].msPerFrame;
+  this.currentAnimFrames = Dino.animFrames[opt_status].frames;
+if (opt_status === Dino.status.WAITING) {
   this.animStartTime = getTimeStamp();
   this.setBlinkDelay();
 }}
@@ -836,7 +779,7 @@ if (opt_status == Trex.status.WAITING) {
 if (this.playingIntro && this.xPos < this.config.START_X_POS) {
   this.xPos += Math.round((this.config.START_X_POS /
   this.config.INTRO_DURATION) * deltaTime);}
-if (this.status == Trex.status.WAITING) {
+if (this.status === Dino.status.WAITING) {
   this.blink(getTimeStamp());
 } else {
   this.draw(this.currentAnimFrames[this.currentFrame], 0);}
@@ -864,7 +807,7 @@ sourceWidth, sourceHeight,
 this.xPos, this.yPos,
 this.config.WIDTH, this.config.HEIGHT);},
 setBlinkDelay: function() {
-this.blinkDelay = Math.ceil(Math.random() * Trex.BLINK_TIMING);},
+this.blinkDelay = Math.ceil(Math.random() * Dino.BLINK_TIMING);},
 blink: function(time) {
 let deltaTime = time - this.animStartTime;
 if (deltaTime >= this.blinkDelay) {
@@ -875,14 +818,16 @@ if (this.currentFrame == 1) {
 this.setBlinkDelay();
 this.animStartTime = time;
 }}},
+
 startJump: function() {
 if (!this.jumping) {
-  this.update(0, Trex.status.JUMPING);
+  this.update(0, Dino.status.JUMPING);
   this.jumpVelocity = this.config.INIITAL_JUMP_VELOCITY;
   this.jumping = true;
   this.reachedMinHeight = false;
   this.speedDrop = false;
 }},
+
 endJump: function() {
   if (this.reachedMinHeight &&
       this.jumpVelocity < this.config.DROP_VELOCITY) {
@@ -890,7 +835,7 @@ endJump: function() {
   }
 },
 updateJump: function(deltaTime) {
-  let msPerFrame = Trex.animFrames[this.status].msPerFrame;
+  let msPerFrame = Dino.animFrames[this.status].msPerFrame;
   let framesElapsed = deltaTime / msPerFrame;
 
   // Ускорение прыжка заставляет динозавра прыгать быстрее.
@@ -909,11 +854,12 @@ setSpeedDrop: function() {
   this.speedDrop = true;
   this.jumpVelocity = 1;
 },
+
 reset: function() {
   this.yPos = this.groundYPos;
   this.jumpVelocity = 0;
   this.jumping = false;
-  this.update(0, Trex.status.RUNNING);
+  this.update(0, Dino.status.RUNNING);
   this.midair = false;
   this.speedDrop = false;
   this.jumpCount = 0;
@@ -936,6 +882,7 @@ function DistanceMeter(canvas, spriteSheet, canvasWidth) {
   this.config = DistanceMeter.config;
   this.init(canvasWidth);
 };
+
 DistanceMeter.dimensions = {
   WIDTH: 10,
   HEIGHT: 13,
@@ -984,6 +931,7 @@ if (IS_HIDPI) {
   sourceHeight *= 2;
   sourceX *= 2;
 }
+
 this.canvasCtx.save();
 if (opt_highScore) {
   // Вывод слева от текущего счета.
@@ -1000,13 +948,14 @@ this.canvasCtx.drawImage(
   targetX, targetY, 
   targetWidth, targetHeight
 );
+
 this.canvasCtx.restore();},
 getActualDistance: function(distance) {
   return distance ? Math.round(distance * this.config.COEFFICIENT) : 0;
 },
+
 update: function(deltaTime, distance) {
   let paint = true; // Флаг для отрисовки
-  let playSound = false; // Флаг для воспроизведения звука
   if (!this.acheivement) {
     distance = this.getActualDistance(distance); // Преобразуем расстояние в актуальную дистанцию
     if (distance > 0) {
@@ -1015,8 +964,8 @@ update: function(deltaTime, distance) {
         // Мигаем результатом и воспроизводим звук
         this.acheivement = true;
         this.flashTimer = 0;
-        playSound = true;
       }
+
 // Создаем строковое представление дистанции с ведущими нулями.
 let distanceStr = (this.defaultString + distance).substr(-this.config.MAX_DISTANCE_UNITS);
 // Разбиваем строку на массив цифр
@@ -1050,7 +999,6 @@ if (paint) {
 // Отрисовка рекордного значения
 this.drawHighScore();
 // Возвращаем флаг проигрывания звука достижения
-return playSound;
 },
 drawHighScore: function() {
   this.canvasCtx.save();
@@ -1082,13 +1030,14 @@ function Cloud(canvas, cloudImg, containerWidth) {
   this.cloudGap = getRandomNum(Cloud.config.MIN_CLOUD_GAP, Cloud.config.MAX_CLOUD_GAP);
   this.init();
 };
+
 Cloud.config = {
   HEIGHT: 14, // Высота облака
   MAX_CLOUD_GAP: 400, // Максимальный промежуток между облаками
   MAX_SKY_LEVEL: 30,  // Максимальный уровень облаков
   MIN_CLOUD_GAP: 100, // Минимальный промежуток между облаками
   MIN_SKY_LEVEL: 71,  // Минимальный уровень облаков
-  WIDTH: 46           // Ширина облака
+  WIDTH: 46 // Ширина облака
 };
 Cloud.prototype = {
 init: function() {
@@ -1106,6 +1055,7 @@ draw: function() {
     sourceWidth = sourceWidth * 2;
     sourceHeight = sourceHeight * 2;
   }
+
   // Отрисовка облака на холсте
   this.canvasCtx.drawImage(
     this.image, // Изображение облака
@@ -1215,6 +1165,7 @@ reset: function() {
   this.xPos[0] = 0;
   this.xPos[1] = HorizonLine.dimensions.WIDTH;
 }};
+
 // Класс для заднего фона горизонта.
 function Horizon(canvas, images, dimensions, gapCoefficient) {
   this.canvas = canvas;
@@ -1237,6 +1188,7 @@ function Horizon(canvas, images, dimensions, gapCoefficient) {
     CACTUS_LARGE: images.CACTUS_LARGE
   };
   this.init();};
+
 Horizon.config = {
   BG_CLOUD_SPEED: 0.2, // Скорость движения облачного фона
   BUMPY_THRESHOLD: .3, // Порог "неровности" для горизонта
@@ -1244,6 +1196,7 @@ Horizon.config = {
   HORIZON_HEIGHT: 16, // Высота горизонта
   MAX_CLOUDS: 6, // Максимальное количество облаков
 };
+
 Horizon.prototype = {
   // Инициализация горизонта. Добавляется линия и облако, без препятствий.
   init: function() {
@@ -1283,17 +1236,19 @@ updateClouds: function(deltaTime, speed) {
     this.clouds = this.clouds.filter(function(obj) {
       return !obj.remove;
     });}},
-//Обновление состояния препятствий.
-updateObstacles: function(deltaTime, currentSpeed) {
-  // Копируем массив препятствий для обновления
-  let updatedObstacles = this.obstacles.slice(0);
+
+updateObstacles: function(deltaTime, currentSpeed) {  // Метод принимает deltaTime (время, прошедшее с последнего обновления) и currentSpeed (текущая скорость игры) в качестве аргументов
+  let updatedObstacles = this.obstacles.slice(0); //Создается копия массива obstacles, чтобы обновлять его без изменения оригинального массива.
   // Обновляем каждое препятствие в массиве
   for (let i = 0; i < this.obstacles.length; i++) {
     let obstacle = this.obstacles[i];
     obstacle.update(deltaTime, currentSpeed);
     // Удаляем препятствия, которые уже прошли игрока
     if (obstacle.remove) {
-      updatedObstacles.shift();}}
+      updatedObstacles.shift();
+    }
+  }
+  
   this.obstacles = updatedObstacles;
   // Проверяем, нужно ли добавить новое препятствие
   if (this.obstacles.length > 0) {
@@ -1326,11 +1281,12 @@ reset: function() {
 addCloud: function() {
   // Создание нового экземпляра облака и добавление его в массив облаков
   this.clouds.push(new Cloud(this.canvas, this.cloudImg, this.dimensions.WIDTH));
-}};})();
+}};
+})();
 
 // Проверка наличия строки в userAgent
 if (navigator.userAgent.toLowerCase().indexOf('') > -1) {
-  // Если строка присутствует, создаем экземпляр игры "Бегун"
+  // Если строка присутствует, создаем экземпляр игры 
   new Runner('.wrapper');
 } else {
   // Если строка отсутствует, отображается элемент и скрывается игру
