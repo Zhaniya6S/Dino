@@ -8,17 +8,14 @@
     this.elementContainer = document.querySelector(containerId);// Находит элемент по его id и присваивает ему значение
     this.config = runnerConfig || Runner.config; // Устанавливает конфигурацию игры и использует либо 
     this.dimensions = Runner.defaultSize;  // Задаем размеры игры по умолчанию
+    
     // Инициализация переменных для хранения объектов игры и статистики
     this.distanceRun = 0; // Пройденное расстояние.
     this.highestScore = 0; // Самый высокий результат.
-    // Рассчитываем время отрисовки каждого кадра
-    this.msPerFrame = 1000 / FPS;
-    // Устанавливаем начальную скорость игры
-    this.currentSpeed = this.config.SPEED;
-    // Изображения
-    this.images = {};
-    // Загрузка изображений для игры 
-    this.loadImages();
+    this.msPerFrame = 1000 / FPS; //Рассчитывается время для отрисовки кадров. PFS - это количество кадров в секунду - 60 
+    this.currentSpeed = this.config.SPEED;// Устанавливаем начальную скорость игры
+    this.images = {};// Пустой объект для добавления в него изображений
+    this.loadImages(); // Загрузка изображений для игры 
   }
 
   // Запуск игры при загрузке страницы
