@@ -19,7 +19,6 @@
   let FPS = 60;  
   let IS_HIDPI = window.devicePixelRatio > 1;
   let IS_IOS = window.navigator.userAgent.indexOf('UIWebViewForStaticFileContent') > -1; 
-  let IS_MOBILE = window.navigator.userAgent.indexOf('Mobi') > -1 || IS_IOS; 
   
   Runner.config = {
     SPEED: 6,
@@ -28,13 +27,12 @@
     GRAVITY: 0.6, 
     INITIAL_JUMP_VELOCITY: 12,
     MIN_JUMP_HEIGHT: 35,
-    MOBILE_SPEED_COEFFICIENT: 1.2,
     GAP_COEFFICIENT: 0.6, 
     SPEED_DROP_COEFFICIENT: 3,
     MAX_CLOUDS: 6,
     BG_CLOUD_SPEED: 0.2,
     CLOUD_FREQUENCY: 0.5,
-    MAX_OBSTACLE_LENGTH: 3,
+    MAX_CACTUS_LENGTH: 3,
     BOTTOM_PAD: 10,
     CLEAR_TIME: 3000,
     GAMEOVER_CLEAR_TIME: 750,
@@ -176,19 +174,19 @@ if (this.activated) {
 if (this.dino.jumping) { 
   this.dino.updateJump(deltaTime, this.config);}
   this.runningTime += deltaTime; 
-let hasObstacles = this.runningTime > this.config.CLEAR_TIME; 
+let hasCactus = this.runningTime > this.config.CLEAR_TIME; 
 if (this.dino.jumpCount == 1 && !this.playingIntro) { 
   this.playIntro();
 }
 
 if (this.playingIntro) {
-  this.horizon.update(0, this.currentSpeed, hasObstacles);
+  this.horizon.update(0, this.currentSpeed, hasCactus);
 } else {
   deltaTime = !this.started ? 0 : deltaTime; 
-  this.horizon.update(deltaTime, this.currentSpeed, hasObstacles); 
+  this.horizon.update(deltaTime, this.currentSpeed, hasCactus); 
 }
 
-let collision = hasObstacles && checkForCollision(this.horizon.obstacles[0], this.dino);
+let collision = hasCactus && checkForCollision(this.horizon.cactus[0], this.dino);
 if (!collision) {
   this.distanceRun += this.currentSpeed * deltaTime / this.msPerFrame;
   if (this.currentSpeed < this.config.MAX_SPEED) {
@@ -229,11 +227,7 @@ handleEvent: function(e) {
 startListening: function() { 
   document.addEventListener(Runner.events.KEYDOWN, this);
   document.addEventListener(Runner.events.KEYUP, this);
- 
-  if (!IS_MOBILE) { 
-    document.addEventListener(Runner.events.MOUSEDOWN, this);
-    document.addEventListener(Runner.events.MOUSEUP, this);
-  }
+
 },
 
 
@@ -293,7 +287,6 @@ return !!this.raqId;
 },
 
 gameOver: function() {
-  vibrate(200);
   this.stop(); 
   this.crashed = true;
   this.distanceMeter.acheivement = false; 
@@ -379,7 +372,7 @@ return false;
 function getRandomNum(min, max) {
 return Math.floor(Math.random() * (max - min + 1)) + min;} 
 function vibrate(duration) { 
-if (IS_MOBILE && window.navigator.vibrate) {
+if (window.navigator.vibrate) {
 window.navigator.vibrate(duration);}
 }
 
@@ -445,7 +438,7 @@ this.canvasCtx.drawImage(
   textTargetWidth, textTargetHeight
 );
 }};
-function checkForCollision(obstacle, dino, opt_canvasCtx) {
+function checkForCollision(cactus, dino, opt_canvasCtx) {
 
 let dinoBox = new CollisionBox(
   dino.xPos + 1, 
@@ -455,32 +448,33 @@ let dinoBox = new CollisionBox(
 );
 
 
-let obstacleBox = new CollisionBox(
-  obstacle.xPos + 1,
-  obstacle.yPos + 1, 
-  obstacle.typeConfig.width * obstacle.size - 2, 
-  obstacle.typeConfig.height - 2 
+let cactusBox = new CollisionBox(
+  cactus.xPos + 1,
+  cactus.yPos + 1, 
+  cactus.typeConfig.width * cactus.size - 2, 
+  cactus.typeConfig.height - 2 
 );
 
 
-if (boxCompare(dinoBox, obstacleBox)) {
-  let collisionBoxes = obstacle.collisionBoxes; 
+if (boxCompare(dinoBox, cactusBox)) {
+  let collisionBoxes = cactus.collisionBoxes; 
   let dinoCollisionBoxes = Dino.collisionBoxes; 
   
 for (let t = 0; t < dinoCollisionBoxes.length; t++) {
 for (let i = 0; i < collisionBoxes.length; i++) {
 
 let adjDinoBox = createAdjustedCollisionBox(dinoCollisionBoxes[t], dinoBox);
-let adjObstacleBox = createAdjustedCollisionBox(collisionBoxes[i], obstacleBox);
-let crashed = boxCompare(adjDinoBox, adjObstacleBox);
+let adjCactusBox = createAdjustedCollisionBox(collisionBoxes[i], cactusBox);
+let crashed = boxCompare(adjDinoBox, adjCactusBox);
 
 if (opt_canvasCtx) {
-drawCollisionBoxes(opt_canvasCtx, adjDinoBox, adjObstacleBox);}
+drawCollisionBoxes(opt_canvasCtx, adjDinoBox, adjCactusBox);}
 if (crashed) {
-  return [adjDinoBox, adjObstacleBox];}
+  return [adjDinoBox, adjCactusBox];}
 }}}
   return false;
 };
+
 function createAdjustedCollisionBox(box, adjustment) {
 return new CollisionBox(
 box.x + adjustment.x,
@@ -489,23 +483,23 @@ box.width,
 box.height
 );};
 
-function drawCollisionBoxes(canvasCtx, dinoBox, obstacleBox) {
+function drawCollisionBoxes(canvasCtx, dinoBox, cactusBox) {
 canvasCtx.save();
 canvasCtx.strokeStyle = '#f00';
 canvasCtx.strokeRect(dinoBox.x, dinoBox.y,
 dinoBox.width, dinoBox.height);
 canvasCtx.strokeStyle = '#0f0';
-canvasCtx.strokeRect(obstacleBox.x, obstacleBox.y,
-obstacleBox.width, obstacleBox.height);
+canvasCtx.strokeRect(cactusBox.x, cactusBox.y,
+cactusBox.width, cactusBox.height);
 canvasCtx.restore();};
-function boxCompare(dinoBox, obstacleBox) {
+function boxCompare(dinoBox, cactusBox) {
 let crashed = false;
-let obstacleBoxX = obstacleBox.x;
+let cactusBoxX = cactusBox.x;
 
-if (dinoBox.x < obstacleBoxX + obstacleBox.width &&
-  dinoBox.x + dinoBox.width > obstacleBoxX &&
-  dinoBox.y < obstacleBox.y + obstacleBox.height &&
-  dinoBox.height + dinoBox.y > obstacleBox.y) {
+if (dinoBox.x < cactusBoxX + cactusBox.width &&
+  dinoBox.x + dinoBox.width > cactusBoxX &&
+  dinoBox.y < cactusBox.y + cactusBox.height &&
+  dinoBox.height + dinoBox.y > cactusBox.y) {
   crashed = true;
 }return crashed;
 };
@@ -515,13 +509,13 @@ this.y = y;
 this.width = w;
 this.height = h;
 };
-function Obstacle(canvasCtx, type, obstacleImg, dimensions,
+function Cactus(canvasCtx, type, cactusImg, dimensions,
 gapCoefficient, speed) {
 this.canvasCtx = canvasCtx;
-this.image = obstacleImg;
+this.image = cactusImg;
 this.typeConfig = type;
 this.gapCoefficient = gapCoefficient;
-this.size = getRandomNum(1, Obstacle.MAX_OBSTACLE_LENGTH);
+this.size = getRandomNum(1, Cactus.MAX_CACTUS_LENGTH);
 this.dimensions = dimensions;
 this.remove = false;
 this.xPos = 0;
@@ -532,9 +526,9 @@ this.gap = 0;
 this.init(speed);
 };
 
-Obstacle.MAX_GAP_COEFFICIENT = 1.5;
-Obstacle.MAX_OBSTACLE_LENGTH = 3,
-Obstacle.prototype = {
+Cactus.MAX_GAP_COEFFICIENT = 1.5;
+Cactus.MAX_CACTUS_LENGTH = 3,
+Cactus.prototype = {
 init: function(speed) {
 this.cloneCollisionBoxes();
 
@@ -571,7 +565,7 @@ this.remove = true;
 getGap: function(gapCoefficient, speed) {
 let minGap = Math.round(this.width * speed +
 this.typeConfig.minGap * gapCoefficient);
-let maxGap = Math.round(minGap * Obstacle.MAX_GAP_COEFFICIENT);
+let maxGap = Math.round(minGap * Cactus.MAX_GAP_COEFFICIENT);
 return getRandomNum(minGap, maxGap);},
 isVisible: function() {
 return this.xPos + this.width > 0;
@@ -584,7 +578,7 @@ collisionBoxes[i].y, collisionBoxes[i].width,
 collisionBoxes[i].height);
 }}};
 
-Obstacle.types = [{
+Cactus.types = [{
 type: 'CACTUS_SMALL',
 className: ' cactus-small ',
 width: 17,
@@ -694,10 +688,12 @@ this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
 this.draw(0, 0);
 this.update(0, Dino.status.WAITING);
 },
+
 setJumpVelocity: function(setting) {
 this.config.INIITAL_JUMP_VELOCITY = -setting;
 this.config.DROP_VELOCITY = -setting / 2;
 },
+
 update: function(deltaTime, opt_status) {
 this.timer += deltaTime;
 
@@ -958,6 +954,7 @@ Cloud.config = {
   MIN_SKY_LEVEL: 71,
   WIDTH: 46 
 };
+
 Cloud.prototype = {
 init: function() {
   this.yPos = getRandomNum(Cloud.config.MAX_SKY_LEVEL, Cloud.config.MIN_SKY_LEVEL);
@@ -979,7 +976,9 @@ draw: function() {
     sourceWidth, sourceHeight,
     this.xPos, this.yPos, 
     Cloud.config.WIDTH, Cloud.config.HEIGHT);
-  this.canvasCtx.restore();},
+    this.canvasCtx.restore();
+  },
+
 update: function(speed) {
   if (!this.remove) {
     this.xPos -= Math.ceil(speed);
@@ -1071,14 +1070,14 @@ function Horizon(canvas, images, dimensions, gapCoefficient) {
   this.config = Horizon.config;
   this.dimensions = dimensions;
   this.gapCoefficient = gapCoefficient;
-  this.obstacles = [];
+  this.cactus = [];
   this.horizonOffsets = [0, 0];
   this.clouds = [];
   this.cloudImg = images.CLOUD;
   this.cloudSpeed = this.config.BG_CLOUD_SPEED;
   this.horizonImg = images.HORIZON;
   this.horizonLine = null;
-  this.obstacleImgs = {
+  this.cactusImgs = {
     CACTUS_SMALL: images.CACTUS_SMALL,
     CACTUS_LARGE: images.CACTUS_LARGE
   };
@@ -1098,12 +1097,12 @@ Horizon.prototype = {
     this.addCloud();
     this.horizonLine = new HorizonLine(this.canvas, this.horizonImg);},
 
-update: function(deltaTime, currentSpeed, updateObstacles) {
+update: function(deltaTime, currentSpeed, updateCactus) {
   this.runningTime += deltaTime;
   this.horizonLine.update(deltaTime, currentSpeed);
   this.updateClouds(deltaTime, currentSpeed);
-  if (updateObstacles) {
-    this.updateObstacles(deltaTime, currentSpeed);
+  if (updateCactus) {
+    this.updateCactus(deltaTime, currentSpeed);
   }},
 
 updateClouds: function(deltaTime, speed) {
@@ -1123,36 +1122,36 @@ updateClouds: function(deltaTime, speed) {
       return !obj.remove;
     });}},
 
-updateObstacles: function(deltaTime, currentSpeed) { 
-  let updatedObstacles = this.obstacles.slice(0); 
-  for (let i = 0; i < this.obstacles.length; i++) {
-    let obstacle = this.obstacles[i];
-    obstacle.update(deltaTime, currentSpeed);
-    if (obstacle.remove) {
-      updatedObstacles.shift();
+updateCactus: function(deltaTime, currentSpeed) { 
+  let updatedCactus = this.cactus.slice(0); 
+  for (let i = 0; i < this.cactus.length; i++) {
+    let cactus = this.cactus[i];
+    cactus.update(deltaTime, currentSpeed);
+    if (cactus.remove) {
+      updatedCactus.shift();
     }
   }
   
-  this.obstacles = updatedObstacles;
-  if (this.obstacles.length > 0) {
-    let lastObstacle = this.obstacles[this.obstacles.length - 1];
-    if (lastObstacle && !lastObstacle.followingObstacleCreated &&
-        lastObstacle.isVisible() &&
-        (lastObstacle.xPos + lastObstacle.width + lastObstacle.gap) < this.dimensions.WIDTH) {
-      this.addNewObstacle(currentSpeed);
-      lastObstacle.followingObstacleCreated = true;
+  this.cactus = updatedCactus;
+  if (this.cactus.length > 0) {
+    let lastCactus = this.cactus[this.cactus.length - 1];
+    if (lastCactus && !lastCactus.followingCactusCreated &&
+        lastCactus.isVisible() &&
+        (lastCactus.xPos + lastCactus.width + lastCactus.gap) < this.dimensions.WIDTH) {
+      this.addNewCactus(currentSpeed);
+      lastCactus.followingCactusCreated = true;
     }} else {
-    this.addNewObstacle(currentSpeed);
+    this.addNewCactus(currentSpeed);
   }},
 
-addNewObstacle: function(currentSpeed) {
-  let obstacleTypeIndex = getRandomNum(0, Obstacle.types.length - 1);
-  let obstacleType = Obstacle.types[obstacleTypeIndex];
-  let obstacleImg = this.obstacleImgs[obstacleType.type];
-  this.obstacles.push(new Obstacle(this.canvasCtx, obstacleType, obstacleImg, this.dimensions, this.gapCoefficient, currentSpeed));},
+addNewCactus: function(currentSpeed) {
+  let cactusTypeIndex = getRandomNum(0, Cactus.types.length - 1);
+  let cactusType = Cactus.types[cactusTypeIndex];
+  let cactusImg = this.cactusImgs[cactusType.type];
+  this.cactus.push(new Cactus(this.canvasCtx, cactusType, cactusImg, this.dimensions, this.gapCoefficient, currentSpeed));},
 reset: function() {
 
-  this.obstacles = [];
+  this.cactus = [];
   this.horizonLine.reset();},
 addCloud: function() {
   this.clouds.push(new Cloud(this.canvas, this.cloudImg, this.dimensions.WIDTH));
